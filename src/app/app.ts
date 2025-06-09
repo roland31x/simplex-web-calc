@@ -12,15 +12,20 @@ import { RouterOutlet } from '@angular/router';
 export class App {
   protected title = 'simplex-web-calc';
 
-  public fVariables: number = 4;
+  public fVariables: number = 5;
 
   public problem: SimplexProblem = new SimplexProblem(this.fVariables);
 
   constructor(){
-    this.problem.addConstraint(new Constraint([2, 1, -1, 2], 6));
-    this.problem.addConstraint(new Constraint([1, 1, 2, 0], 5));
-    this.problem.addConstraint(new Constraint([-1, 2, 1, 1], 8));
-    this.problem.func.coefficients = [1, 2, 3, 5]; // Example coefficients for the objective function
+    // this.problem.addConstraint(new Constraint([2, 1, -1, 2], 6));
+    // this.problem.addConstraint(new Constraint([1, 1, 2, 0], 5));
+    // this.problem.addConstraint(new Constraint([-1, 2, 1, 1], 8));
+    // this.problem.func.coefficients = [1, 2, 3, 5]; // Example coefficients for the objective function
+
+    this.problem.addConstraint(new Constraint([1, 2, 0, 1, 1], 12));
+    this.problem.addConstraint(new Constraint([-1, 2, -2, 4, 0], 13));
+    this.problem.addConstraint(new Constraint([1, 1, 1, 1, 0], 7));
+    this.problem.func.coefficients = [1, 0, 2, -1, 0]; // Example coefficients for the objective function
   }
 
   public snapshots: SimplexTableStep[] = [];
@@ -215,158 +220,222 @@ export class SimplexProblem {
 
     let stepC = 0;
 
-    while(true){
-      let done = false;
-      stepC++;
+    let enteringIndex = -1;
+    let leavingIndex = -1;
 
-      if(stepC > 30){
-        break;
-      }
+    try{
+      while(true){
+        let done = false;
+        stepC++;
 
-      // Find entering variable
-      let enteringIndex = -1;
-      let minDiff = Number.NEGATIVE_INFINITY;
-      for (let i = 0; i < fRowDiff.length; i++) {
-        if (fRowDiff[i] > minDiff && fRowDiff[i] > 0) {
-          minDiff = fRowDiff[i];
-          enteringIndex = i;
+        if(stepC > 30){
+          break;
         }
-      }
 
-      if (enteringIndex === -1) {
-        console.log('No entering variable found, checking for non-basic variables');
-        done = true;
+        let missingBase = false;
         for(let ch = 0; ch < basicVariables.length; ch++) {
-          if(basicVariables[ch] === -1) {
-            done = false; // There are still non-basic variables
-            console.log('Non-basic variable found at index:', ch);
+          if(basicVariables[ch] == -1) {
+            console.log('Missing base variable at index:', ch);
+            missingBase = true;
             break;
           }
         }
 
-        if(!done){
-          console.log(basicVariables);
+        if(!missingBase && fRowDiff.every(diff => diff <= 0.009)) {
+          console.log('Optimal solution found, no entering variable needed');
+          break;
+        }
+
+        if(missingBase){
+          let firstMissingBase = -1;
+          for(let ch = 0; ch < basicVariables.length; ch++) {
+            if(basicVariables[ch] === -1) {
+              firstMissingBase = ch;
+              break;
+            }
+          }
+          let firstAvailableBase = 0;
+
+          for(let b = 0; b < numVariables; b++) {
+            let found = false;
+            for(let ch = 0; ch < basicVariables.length; ch++) {
+              if(basicVariables[ch] === b) {
+                found = true;
+                break;
+              }
+            }
+            if(!found) {
+              firstAvailableBase = b;
+              break;
+            }
+          }
+
+
+          leavingIndex = firstMissingBase;
+          enteringIndex = firstAvailableBase;
+
+        }
+        else{
+          let minDiff = Number.NEGATIVE_INFINITY;
           for (let i = 0; i < fRowDiff.length; i++) {
-            console.log('fRowDiff[' + i + ']:', fRowDiff[i]);
-            if (fRowDiff[i] > minDiff && fRowDiff[i] != 0) {
+            if (fRowDiff[i] > minDiff && fRowDiff[i] > 0) {
               minDiff = fRowDiff[i];
               enteringIndex = i;
             }
           }
-        }
-      }
 
-      if(done) {
-        console.log('Optimal solution found, no entering variable needed');
-        break;
-      }
-
-      let smallestRatio = Number.POSITIVE_INFINITY;
-      let leavingIndex = -1;
-      // Find leaving variable
-      for (let i = 0; i < limits.length; i++) {
-        if (tableau[i][enteringIndex] != 0) {
-          const ratio = limits[i] / tableau[i][enteringIndex];
-          let canSwap = true;
-          for(let ch = 0; ch < basicVariables.length; ch++) {
-            if(basicVariables[ch] == i) {
-              canSwap = false;
-              break;
-            }
-          }
-          if (canSwap && ratio < smallestRatio && ratio >= 0) {
-            smallestRatio = ratio;
-            leavingIndex = i;
-            
-          }
-        }
-      }
-
-      if (leavingIndex === -1) {
-        smallestRatio = Number.POSITIVE_INFINITY;
-        for (let i = 0; i < limits.length; i++) {
-          if (tableau[i][enteringIndex] != 0) {
-            const ratio = limits[i] / tableau[i][enteringIndex];
-            let canSwap = true;
+          if (enteringIndex === -1) {
+            console.log('No entering variable found, checking for non-basic variables');
+            done = true;
             for(let ch = 0; ch < basicVariables.length; ch++) {
-              if(basicVariables[ch] == i) {
-                canSwap = false;
+              if(basicVariables[ch] === -1) {
+                done = false; // There are still non-basic variables
+                console.log('Non-basic variable found at index:', ch);
                 break;
               }
             }
-            if (canSwap && ratio > smallestRatio && ratio != 0) {
-              smallestRatio = ratio;
-              leavingIndex = i;
-             
+
+            if(!done){
+              console.log(basicVariables);
+              for (let i = 0; i < fRowDiff.length; i++) {
+                console.log('fRowDiff[' + i + ']:', fRowDiff[i]);
+                if (fRowDiff[i] > minDiff && fRowDiff[i] != 0) {
+                  minDiff = fRowDiff[i];
+                  enteringIndex = i;
+                }
+              }
+            }
+          }
+
+          if(done) {
+            console.log('Optimal solution found, no entering variable needed');
+            break;
+          }
+
+          let smallestRatio = Number.POSITIVE_INFINITY;
+          
+          // Find leaving variable
+          for (let i = 0; i < limits.length; i++) {
+            if (tableau[i][enteringIndex] != 0) {
+              const ratio = limits[i] / tableau[i][enteringIndex];
+              let canSwap = true;
+              for(let ch = 0; ch < basicVariables.length; ch++) {
+                if(basicVariables[ch] == i) {
+                  canSwap = false;
+                  break;
+                }
+              }
+              if (canSwap && ratio < smallestRatio && ratio >= 0) {
+                smallestRatio = ratio;
+                leavingIndex = i;
+                
+              }
+            }
+          }
+
+          if (leavingIndex === -1) {
+            smallestRatio = Number.POSITIVE_INFINITY;
+            for (let i = 0; i < limits.length; i++) {
+              if (tableau[i][enteringIndex] != 0) {
+                const ratio = limits[i] / tableau[i][enteringIndex];
+                let canSwap = true;
+                for(let ch = 0; ch < basicVariables.length; ch++) {
+                  if(basicVariables[ch] == i) {
+                    canSwap = false;
+                    break;
+                  }
+                }
+                if (canSwap && ratio > smallestRatio && ratio != 0) {
+                  smallestRatio = ratio;
+                  leavingIndex = i;
+                
+                }
+              }
             }
           }
         }
-      }
-      console.log('Entering index:', enteringIndex + 1);
-      // Pivot operation
-      console.log('Leaving index:', leavingIndex + 1);
 
-      const pivot = tableau[leavingIndex][enteringIndex];
-      if (pivot === 0) {
-        console.error('Pivot element is zero, cannot proceed');
-        break;
-      }
-      console.log('Pivoting on element:', pivot, 'at row:', leavingIndex, 'column:', enteringIndex);
-      for (let j = 0; j < tableau[leavingIndex].length; j++) {
-        tableau[leavingIndex][j] /= pivot;
-      }
-      limits[leavingIndex] /= pivot;
-      for (let i = 0; i < tableau.length; i++) {
-        if (i !== leavingIndex) {
-          const factor = tableau[i][enteringIndex];
-          for (let j = 0; j < tableau[i].length; j++) {
-            tableau[i][j] -= factor * tableau[leavingIndex][j];
-          }
-          limits[i] -= factor * limits[leavingIndex];
+        // Find entering variable
+       
+        
+
+        console.log('Entering index:', enteringIndex + 1);
+        // Pivot operation
+        console.log('Leaving index:', leavingIndex + 1);
+
+        const pivot = tableau[leavingIndex][enteringIndex];
+        if (pivot === 0) {
+          console.error('Pivot element is zero, cannot proceed');
+          break;
         }
-      }
-      // Update basic variables
-      basicVariables[leavingIndex] = enteringIndex;
-      // Recalculate the objective function row
-      fRow = Array(numVariables + 1).fill(0);
-      for (let j = 0; j < numVariables; j++) {     
-        for(let row = 0; row < numConstraints; row++) {
+        console.log('Pivoting on element:', pivot, 'at row:', leavingIndex, 'column:', enteringIndex);
+        for (let j = 0; j < tableau[leavingIndex].length; j++) {
+          tableau[leavingIndex][j] /= pivot;
+        }
+        limits[leavingIndex] /= pivot;
+        for (let i = 0; i < tableau.length; i++) {
+          if (i !== leavingIndex) {
+            const factor = tableau[i][enteringIndex];
+            for (let j = 0; j < tableau[i].length; j++) {
+              tableau[i][j] -= factor * tableau[leavingIndex][j];
+            }
+            limits[i] -= factor * limits[leavingIndex];
+          }
+        }
+        // Update basic variables
+        basicVariables[leavingIndex] = enteringIndex;
+        // Recalculate the objective function row
+        fRow = Array(numVariables + 1).fill(0);
+        for (let j = 0; j < numVariables; j++) {     
+          for(let row = 0; row < numConstraints; row++) {
+            if(basicVariables[row] === -1) {
+              fRow[j] += 0;
+            }
+            else{
+              fRow[j] += tableau[row][j] * this.func.coefficients[basicVariables[row]];
+            }  
+          }
+          fRow[j] = parseFloat(fRow[j].toFixed(2)); // Round to 2 decimal places
+        }
+
+        for(let row = 0; row < tableau.length; row++) {
           if(basicVariables[row] === -1) {
-            fRow[j] += 0;
-          }
-          else{
-            fRow[j] += tableau[row][j] * this.func.coefficients[basicVariables[row]];
-          }  
+              fRow[numVariables] += 0;
+            }
+            else{
+              fRow[numVariables] += limits[row] * this.func.coefficients[basicVariables[row]];
+            }  
+
+
         }
-      }
 
-      for(let row = 0; row < tableau.length; row++) {
-        if(basicVariables[row] === -1) {
-            fRow[numVariables] += 0;
-          }
-          else{
-            fRow[numVariables] += limits[row] * this.func.coefficients[basicVariables[row]];
-          }  
-      }
+        fRow[numVariables] = parseFloat(fRow[numVariables].toFixed(2)); // Round to 2 decimal places
 
 
-      fRowDiff = Array(numVariables).fill(0);
-      for (let i = 0; i < numVariables; i++) {
-        fRowDiff[i] = this.func.coefficients[i] - fRow[i];
-      }
-      step = new SimplexTableStep(tableau, basicVariables, fRow, fRowDiff, limits);
+        fRowDiff = Array(numVariables).fill(0);
+        for (let i = 0; i < numVariables; i++) {
+          fRowDiff[i] = this.func.coefficients[i] - fRow[i];
+        }
+        step = new SimplexTableStep(tableau, basicVariables, fRow, fRowDiff, limits);
 
-      if(steps.length > 0) {
-        steps[steps.length - 1].enteringIndex = enteringIndex; // Store 1-based index
-        steps[steps.length - 1].leavingIndex = leavingIndex; // Store 1-based index
-      }
+        if(steps.length > 0) {
+          steps[steps.length - 1].enteringIndex = enteringIndex; // Store 1-based index
+          steps[steps.length - 1].leavingIndex = leavingIndex; // Store 1-based index
+        }
 
-      steps.push(step);
+        steps.push(step);
+
+        
 
       
-
-     
+      }
     }
+    catch (error) {
+      console.error('Error during simplex algorithm execution:', error);
+      return steps;
+    }
+
+    
     console.log('Results:', steps);
     return steps;
   }
