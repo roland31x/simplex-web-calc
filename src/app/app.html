@@ -6,7 +6,7 @@
     <div class="d-flex flex-column p-4" style="border: 1px solid gray; border-radius: 8px;">
       
 
-      <span class="mt-3 text-muted">Variable Count: <input type="text" id="degree" placeholder="" class="mb-2" [(ngModel)]="fVariables" (ngModelChange)="onVariableCountChange()" /></span>
+      <span class="mt-3 text-muted">Variable Count: <input type="text" placeholder="" class="mb-2" [(ngModel)]="fVariables" (ngModelChange)="onVariableCountChange()" /></span>
       <div>
         <span class="text-dark fw-bold">f(X) = 
           @for(variable of problem.func.coefficients; track $index; let idx = $index) {

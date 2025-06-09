@@ -285,26 +285,7 @@ export class SimplexProblem {
           }
 
           if (enteringIndex === -1) {
-            console.log('No entering variable found, checking for non-basic variables');
-            done = true;
-            for(let ch = 0; ch < basicVariables.length; ch++) {
-              if(basicVariables[ch] === -1) {
-                done = false; // There are still non-basic variables
-                console.log('Non-basic variable found at index:', ch);
-                break;
-              }
-            }
-
-            if(!done){
-              console.log(basicVariables);
-              for (let i = 0; i < fRowDiff.length; i++) {
-                console.log('fRowDiff[' + i + ']:', fRowDiff[i]);
-                if (fRowDiff[i] > minDiff && fRowDiff[i] != 0) {
-                  minDiff = fRowDiff[i];
-                  enteringIndex = i;
-                }
-              }
-            }
+            throw new Error('No entering variable found, problem may be infeasible');
           }
 
           if(done) {
@@ -318,14 +299,7 @@ export class SimplexProblem {
           for (let i = 0; i < limits.length; i++) {
             if (tableau[i][enteringIndex] != 0) {
               const ratio = limits[i] / tableau[i][enteringIndex];
-              let canSwap = true;
-              for(let ch = 0; ch < basicVariables.length; ch++) {
-                if(basicVariables[ch] == i) {
-                  canSwap = false;
-                  break;
-                }
-              }
-              if (canSwap && ratio < smallestRatio && ratio >= 0) {
+              if (ratio < smallestRatio && ratio >= 0) {
                 smallestRatio = ratio;
                 leavingIndex = i;
                 
@@ -334,24 +308,7 @@ export class SimplexProblem {
           }
 
           if (leavingIndex === -1) {
-            smallestRatio = Number.POSITIVE_INFINITY;
-            for (let i = 0; i < limits.length; i++) {
-              if (tableau[i][enteringIndex] != 0) {
-                const ratio = limits[i] / tableau[i][enteringIndex];
-                let canSwap = true;
-                for(let ch = 0; ch < basicVariables.length; ch++) {
-                  if(basicVariables[ch] == i) {
-                    canSwap = false;
-                    break;
-                  }
-                }
-                if (canSwap && ratio > smallestRatio && ratio != 0) {
-                  smallestRatio = ratio;
-                  leavingIndex = i;
-                
-                }
-              }
-            }
+            throw new Error('No leaving variable found, problem may be unbounded');
           }
         }
 
